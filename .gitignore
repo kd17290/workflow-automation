@@ -1,0 +1,13 @@
+.idea
+__pycache__/
+
+.DS_Store
+# Distribution / packaging
+.Python
+
+# Environments
+.env
+.venv
+
+# Storage
+data

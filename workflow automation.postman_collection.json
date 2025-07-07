@@ -1,0 +1,128 @@
+{
+	"info": {
+		"_postman_id": "9b53006a-7274-4ec6-b11f-3acf01842964",
+		"name": "workflow automation",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "688246"
+	},
+	"item": [
+		{
+			"name": "create workflow",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"id\": \"example_workflow\",\n  \"name\": \"Example Notification Workflow\",\n  \"description\": \"A simple workflow that delays and then sends a webhook notification\",\n  \"steps\": [\n    {\n      \"name\": \"wait_step\",\n      \"type\": \"delay\",\n      \"config\": {\n        \"duration\": 2\n      }\n    },\n    {\n      \"name\": \"notify_step\",\n      \"type\": \"webhook\",\n      \"config\": {\n        \"url\": \"https://httpbin.org/post\",\n        \"method\": \"POST\",\n        \"headers\": {\n          \"Content-Type\": \"application/json\"\n        },\n        \"body\": {\n          \"message\": \"Workflow completed\",\n          \"user_data\": \"${payload.user_id}\",\n          \"timestamp\": \"${payload.timestamp}\"\n        }\n      }\n    }\n  ]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8001/api/workflows",
+					"host": [
+						"localhost"
+					],
+					"port": "8001",
+					"path": [
+						"api",
+						"workflows"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Retrieve a workflow",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "localhost:8001/api/workflows/example_workflow/",
+					"host": [
+						"localhost"
+					],
+					"port": "8001",
+					"path": [
+						"api",
+						"workflows",
+						"example_workflow",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Trigger a workflow",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"workflow_id\": \"example_workflow\",\n    \"payload\": {\n        \"user_id\": \"user123\",\n        \"timestamp\": \"2025-07-07T10:00:00Z\",\n        \"event\": \"user_signup\"\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8001/api/trigger/",
+					"host": [
+						"localhost"
+					],
+					"port": "8001",
+					"path": [
+						"api",
+						"trigger",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Retrieve a run using ru id",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "localhost:8001/api/runs/95d1610f-9bb9-43f3-959e-7e52fcaaf31d",
+					"host": [
+						"localhost"
+					],
+					"port": "8001",
+					"path": [
+						"api",
+						"runs",
+						"95d1610f-9bb9-43f3-959e-7e52fcaaf31d"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "List all runs",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "localhost:8001/api/runs/",
+					"host": [
+						"localhost"
+					],
+					"port": "8001",
+					"path": [
+						"api",
+						"runs",
+						""
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
