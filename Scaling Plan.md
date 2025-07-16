@@ -6,9 +6,9 @@ This document outlines the current limitations of the workflow automation system
 ## Current POC Limitations
 - No API authentication or authorization
 - File-based storage doesn't scale
-- Single-threaded execution 
-- Workflows run sequentially, blocking other operations 
-- No retry mechanisms, error handling is basic. 
+- Single-threaded execution
+- Workflows run sequentially, blocking other operations
+- No retry mechanisms, error handling is basic.
 - Basic logging, no metrics or tracing - Difficult to monitor and debug prod issues and monitor performance
 
 ## Scaling Plan

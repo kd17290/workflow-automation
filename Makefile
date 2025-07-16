@@ -4,10 +4,10 @@ TOP_DIR=$(shell git rev-parse --show-toplevel)
 
 .PHONY: build
 build:
-	docker-compose build
+	docker-compose build --no-cache
 
 .PHONY: up
-up:
+up: install
 	docker-compose up -d
 
 .PHONY: down
@@ -16,12 +16,8 @@ down:
 
 .PHONY: remove
 remove: down
+	docker-compose run --rm app rm -rf .venv
 	docker-compose rm -f
-
-.PHONY: tests
-tests: down
-	docker-compose run --rm app pytest tests
-	rm -rf data
 
 .PHONY: hook
 hook:
@@ -29,12 +25,16 @@ hook:
 
 .PHONY: lock
 lock:
-	poetry lock --no-update
+	docker-compose run --rm app poetry lock
 
 .PHONY: install
 install:
-	poetry install --only main
+	docker-compose run --rm app poetry install --only main
 
 .PHONY: lint
 lint:
 	pre-commit run --all-files
+
+.PHONY: tests
+tests: remove install
+	docker-compose run --rm app poetry run pytest

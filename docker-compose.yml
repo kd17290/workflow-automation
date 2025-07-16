@@ -2,15 +2,21 @@
 
 services:
   app:
-    image: '${DOCKER_IMAGE_NAME:-workflow-automation-ms}:${DOCKER_IMAGE_TAG:-latest}'
+    image: '${DOCKER_IMAGE_NAME:-app-ms}:${DOCKER_IMAGE_TAG:-latest}'
     tty: true
-    container_name: workflow_automation
+    container_name: app-ms
     build:
       context: .
       dockerfile: Dockerfile
-    command: bash -c "uvicorn app.main:app --host 0.0.0.0 --port 8001 --log-level info --reload"
+    command: bash -c "poetry run uvicorn app.main:app --host 0.0.0.0 --port 8001 --log-level info --reload"
     volumes:
-      - .:/app
+      - .:/usr/src/app
     ports:
       - 8001:8001
     restart: always
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8001/health" ]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3

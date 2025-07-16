@@ -1,24 +1,36 @@
-# LICENSE HEADER
+FROM python:3.13-slim
 
-FROM python:3.10-slim-bullseye
-LABEL Workflow Automation MS
+RUN echo "Installing System Packages" && \
+    apt update && \
+    apt-get -y install locales wait-for-it git bash-completion libpq-dev wget && \
+    pip install --upgrade pip && \
+    pip install pipx==1.7.1 && \
+    echo "Clean apt cache and unneeded pkgs" && \
+    apt-get clean autoclean --yes && \
+    apt-get autoremove --yes && \
+    rm -rf /var/lib/{apt,dpkg,cache,log}/
 
-RUN apt-get update \
-    && apt-get -y install libpq-dev gcc curl procps net-tools tini \
-    && apt-get -y clean \
-    && rm -rf /var/lib/apt/lists/* \
-    && pip install gunicorn
+# Installing Poetry (Pinning installed version here).
+RUN pipx install poetry==2.1.3 pre-commit==3.3.3 && \
+    echo "Poetry and pre-commit installed successfully."
 
-ENV POETRY_HOME=/tmp/poetry
-RUN curl -sSL https://install.python-poetry.org/ | python3 -
-ENV PATH=$POETRY_HOME/bin:$PATH
-ENV PYTHONFAULTHANDLER=1
-ENV PYTHONUNBUFFERED=1
+# Setting Environment variables for Poetry config settings for virtualenv management.
+ENV POETRY_VIRTUALENVS_IN_PROJECT=true \
+    POETRY_VIRTUALENVS_CREATE=true
 
-WORKDIR /app
+# Ensure the Poetry binary is in the PATH
+ENV PATH="/root/.local/bin:${PATH}"
+
+WORKDIR /usr/src/app
+
+# Copy pyproject.toml and poetry.lock file for installing dependencies.
+COPY pyproject.toml ./
+
+# Install dependencies.
+RUN poetry lock
+RUN poetry install --no-interaction --no-root --no-ansi --verbose
+
+# Copy remaining source code.
 COPY . .
 
-RUN poetry config virtualenvs.create false \
-  && poetry install --only main
-
-EXPOSE 9001
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 CMD curl -f http://localhost:8001/health || exit 1

@@ -1,4 +1,9 @@
-/venv
-test.db
-/media
-/data
+.git/
+db/
+.venv/
+.cache/
+.vscode-studies
+.vscode-celery
+.tmpdir
+__pycache__/
+data
