@@ -1,12 +1,16 @@
 import logging
 from enum import Enum
+from typing import Annotated
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
+from typing import Union
 
 from pydantic import BaseModel
 from pydantic import Field
+
+from app.connector.delay import DelayOutput
+from app.connector.delay import DelayWorkflowStep
+from app.connector.webhook import WebhookResponse
+from app.connector.webhook import WebhookWorkflowStep
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -31,37 +35,41 @@ class StepStatus(str, Enum):
 
 class TriggerRequest(BaseModel):
     workflow_id: str
-    payload: Dict[str, Any] = Field(default_factory=dict)
+    payload: dict[str, Any] = Field(default_factory=dict)
 
 
-class WorkflowStep(BaseModel):
-    name: str
-    type: str
-    config: Dict[str, Any]
+WorkflowStep = Annotated[
+    Union[WebhookWorkflowStep, DelayWorkflowStep], Field(discriminator="type")
+]
+
+
+WorkflowStepResponse = Annotated[
+    Union[DelayOutput, WebhookResponse], Field(discriminator="type")
+]
 
 
 class WorkflowDefinition(BaseModel):
     id: str
     name: str
-    description: Optional[str] = None
-    steps: List[WorkflowStep]
-
-
-class WorkflowRun(BaseModel):
-    id: str
-    workflow_id: str
-    status: WorkflowStatus
-    payload: Dict[str, Any]
-    started_at: str
-    completed_at: Optional[str] = None
-    error: Optional[str] = None
-    step_results: Dict[str, Any] = Field(default_factory=dict)
+    description: str | None = None
+    steps: list[WorkflowStep]
 
 
 class StepResult(BaseModel):
     step_name: str
     status: StepStatus
     started_at: str
-    completed_at: Optional[str] = None
-    output: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
+    completed_at: str | None = None
+    output: WorkflowStepResponse | None = None
+    error: str | None = None
+
+
+class WorkflowRun(BaseModel):
+    id: str
+    workflow_id: str
+    status: WorkflowStatus
+    payload: dict[str, Any]
+    started_at: str
+    completed_at: str | None = None
+    error: str | None = None
+    step_results: dict[str, StepResult] = Field(default_factory=dict)

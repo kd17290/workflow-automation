@@ -1,10 +1,8 @@
 import logging
 from datetime import datetime
 from typing import Any
-from typing import Dict
 
-from app.connector.delay import DelayConnector
-from app.connector.webhook import WebhookConnector
+from app.connector.factory import ConnectorFactory
 from app.models import StepResult
 from app.models import StepStatus
 from app.models import WorkflowStatus
@@ -19,7 +17,6 @@ logger = logging.getLogger(__name__)
 class WorkflowEngine:
     def __init__(self, storage: WorkflowStorage):
         self.storage = storage
-        self.connectors = {"delay": DelayConnector(), "webhook": WebhookConnector()}
 
     async def execute_workflow(self, run_id: str):
         """Execute a workflow run"""
@@ -46,7 +43,7 @@ class WorkflowEngine:
         try:
             for step in workflow.steps:
                 step_result = await self._execute_step(step, context)
-                run.step_results[step.name] = step_result.dict()
+                run.step_results[step.name] = step_result
 
                 if step_result.status == StepStatus.FAILED:
                     run.status = WorkflowStatus.FAILED
@@ -73,7 +70,7 @@ class WorkflowEngine:
             self.storage.save_run(run)
 
     async def _execute_step(
-        self, step: WorkflowStep, context: Dict[str, Any]
+        self, step: WorkflowStep, context: dict[str, Any]
     ) -> StepResult:
         """Execute a single workflow step"""
         step_result = StepResult(
@@ -83,13 +80,9 @@ class WorkflowEngine:
         )
 
         try:
-            connector = self.connectors.get(step.type)
-            if not connector:
-                raise ValueError(f"Unknown connector type: {step.type}")
-
+            connector = ConnectorFactory.get_instance(step.type)
             logger.info(f"Executing step: {step.name} ({step.type})")
-            output = await connector.execute(step.config, context)
-
+            output = await connector.execute(step, context)
             step_result.status = StepStatus.SUCCESS
             step_result.output = output
             step_result.completed_at = datetime.now().isoformat()

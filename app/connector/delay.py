@@ -2,27 +2,46 @@
 import asyncio
 import logging
 from typing import Any
-from typing import Dict
+from typing import Literal
 
+from pydantic import BaseModel
+
+from .enum import ConnectorType
 from app.connector.base import BaseConnector
-
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+class DelayConfig(BaseModel):
+    duration: int
+
+
+class DelayWorkflowStep(BaseModel):
+    type: Literal[ConnectorType.DELAY] = ConnectorType.DELAY
+    name: str
+    config: DelayConfig
+
+
+class DelayOutput(BaseModel):
+    type: Literal[ConnectorType.DELAY] = ConnectorType.DELAY
+    duration: int
+    message: str
+
+
 class DelayConnector(BaseConnector):
     def __init__(self):
-        super().__init__("delay")
+        super().__init__(ConnectorType.DELAY)
 
     async def execute(
-        self, config: Dict[str, Any], context: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, step: DelayWorkflowStep, context: dict[str, Any]
+    ) -> DelayOutput:
         """Wait for specified duration"""
-        duration = config.get("duration", 1)  # Default 1 second
+        assert step.type == ConnectorType.DELAY
+        duration = step.config.duration  # Default 1 second
 
         logger.info(f"Delaying for {duration} seconds")
         await asyncio.sleep(duration)
 
-        return {"duration": duration, "message": f"Delayed for {duration} seconds"}
+        return DelayOutput(duration=duration, message=f"Delayed for {duration} seconds")

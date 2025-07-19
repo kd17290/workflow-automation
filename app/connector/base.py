@@ -1,13 +1,15 @@
+from abc import ABC
+from abc import abstractmethod
 from typing import Any
-from typing import Dict
+
+from app.connector.enum import ConnectorType
 
 
-class BaseConnector:
-    def __init__(self, name: str):
-        self.name = name
+class BaseConnector(ABC):
+    def __init__(self, type: ConnectorType):
+        self.type: ConnectorType = type
 
-    async def execute(
-        self, config: Dict[str, Any], context: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    @abstractmethod
+    async def execute(self, config: Any, context: dict[str, Any]) -> dict[str, Any]:
         """Execute the connector logic"""
-        raise NotImplementedError
+        ...

@@ -1,32 +1,51 @@
 import logging
 from typing import Any
-from typing import Dict
+from typing import Literal
 
 import httpx
+from pydantic import BaseModel
 
+from .enum import ConnectorType
 from app.connector.base import BaseConnector
-
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+class WebhookConfig(BaseModel):
+    url: str
+    method: str
+    headers: dict[str, str] = {}
+    body: dict[str, Any] = {}
+
+
+class WebhookWorkflowStep(BaseModel):
+    type: Literal[ConnectorType.WEBHOOK] = ConnectorType.WEBHOOK
+    name: str
+    config: WebhookConfig
+
+
+class WebhookResponse(BaseModel):
+    type: Literal[ConnectorType.WEBHOOK] = ConnectorType.WEBHOOK
+    status_code: int
+    response_data: Any
+    url: str
+    method: str
+
+
 class WebhookConnector(BaseConnector):
     def __init__(self):
-        super().__init__("webhook")
+        super().__init__(ConnectorType.WEBHOOK)
 
     async def execute(
-        self, config: Dict[str, Any], context: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, step: WebhookWorkflowStep, context: dict[str, Any]
+    ) -> WebhookResponse:
         """Make HTTP request to webhook URL"""
-        url = config.get("url")
-        method = config.get("method", "POST").upper()
-        headers = config.get("headers", {})
-        body = config.get("body", {})
-
-        if not url:
-            raise ValueError("Webhook URL is required")
+        url = step.config.url
+        method = step.config.method.upper()
+        headers = step.config.headers
+        body = step.config.body
 
         # Replace placeholders in body with context data
         if isinstance(body, dict):
@@ -46,16 +65,19 @@ class WebhookConnector(BaseConnector):
             else:
                 raise ValueError(f"Unsupported HTTP method: {method}")
 
-        return {
-            "status_code": response.status_code,
-            "response_data": response.json()
+        response_data = (
+            response.json()
             if response.headers.get("content-type", "").startswith("application/json")
-            else response.text,
-            "url": url,
-            "method": method,
-        }
+            else response.text
+        )
+        return WebhookResponse(
+            status_code=response.status_code,
+            response_data=response_data,
+            url=url,
+            method=method,
+        )
 
-    def _replace_placeholders(self, data: Any, context: Dict[str, Any]) -> Any:
+    def _replace_placeholders(self, data: Any, context: dict[str, Any]) -> Any:
         """Replace placeholders in data with context values"""
         if isinstance(data, dict):
             return {k: self._replace_placeholders(v, context) for k, v in data.items()}

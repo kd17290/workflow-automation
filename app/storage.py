@@ -27,7 +27,7 @@ class WorkflowStorage:
         workflow_file = self.workflows_path / f"{workflow.id}.json"
         print(f"Saving workflow to {workflow_file=}")
         with open(workflow_file, "w") as f:
-            json.dump(workflow.dict(), f, indent=2)
+            json.dump(workflow.model_dump(), f, indent=2)
 
     def load_workflow(self, workflow_id: str) -> Optional[WorkflowDefinition]:
         """Load workflow definition from filesystem"""

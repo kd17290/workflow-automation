@@ -61,7 +61,7 @@ def sample_trigger_request():
 
 def test_create_workflow(workflow_storage, sample_workflow):
     """Test creating a workflow."""
-    response = client.post("/api/workflows", json=sample_workflow.dict())
+    response = client.post("/api/workflows", json=sample_workflow.model_dump())
     assert response.status_code == 200
     assert response.json() == {
         "message": "Workflow created successfully",
@@ -78,7 +78,7 @@ def test_trigger_workflow(workflow_storage, sample_workflow, sample_trigger_requ
     # First, save the workflow
     workflow_storage.save_workflow(sample_workflow)
 
-    response = client.post("/api/trigger", json=sample_trigger_request.dict())
+    response = client.post("/api/trigger", json=sample_trigger_request.model_dump())
     assert response.status_code == 200
     data = response.json()
     assert "run_id" in data
@@ -99,7 +99,7 @@ def test_get_workflow(workflow_storage, sample_workflow):
 
     response = client.get(f"/api/workflows/{sample_workflow.id}")
     assert response.status_code == 200
-    assert response.json() == sample_workflow.dict()
+    assert response.json() == sample_workflow.model_dump()
 
 
 def test_get_nonexistent_workflow():
@@ -113,7 +113,7 @@ def test_get_run(workflow_storage, sample_workflow, sample_trigger_request):
     """Test retrieving a workflow run."""
     # First, save the workflow and trigger it
     workflow_storage.save_workflow(sample_workflow)
-    response = client.post("/api/trigger", json=sample_trigger_request.dict())
+    response = client.post("/api/trigger", json=sample_trigger_request.model_dump())
     assert response.status_code == 200
     run_id = response.json()["run_id"]
 
@@ -135,7 +135,7 @@ def test_list_runs(workflow_storage, sample_workflow, sample_trigger_request):
     """Test listing all workflow runs."""
     # First, save the workflow and trigger it
     workflow_storage.save_workflow(sample_workflow)
-    response = client.post("/api/trigger", json=sample_trigger_request.dict())
+    response = client.post("/api/trigger", json=sample_trigger_request.model_dump())
     assert response.status_code == 200
 
     response = client.get("/api/runs")
@@ -149,7 +149,7 @@ def test_workflow_run_status(workflow_storage, sample_workflow, sample_trigger_r
     """Test the status of a workflow run."""
     # First, save the workflow and trigger it
     workflow_storage.save_workflow(sample_workflow)
-    response = client.post("/api/trigger", json=sample_trigger_request.dict())
+    response = client.post("/api/trigger", json=sample_trigger_request.model_dump())
     assert response.status_code == 200
     run_id = response.json()["run_id"]
 
