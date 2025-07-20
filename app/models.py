@@ -49,7 +49,8 @@ WorkflowStepResponse = Annotated[
 
 
 class WorkflowDefinition(BaseModel):
-    id: str
+    uuid: str | None = None
+    id: str | None = None
     name: str
     description: str | None = None
     steps: list[WorkflowStep]
@@ -65,7 +66,8 @@ class StepResult(BaseModel):
 
 
 class WorkflowRun(BaseModel):
-    id: str
+    uuid: str | None = None
+    id: str | None = None
     workflow_id: str
     status: WorkflowStatus
     payload: dict[str, Any]

@@ -2,11 +2,11 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from app.legacy_storage import WorkflowStorage
 from app.main import app
 from app.models import TriggerRequest
 from app.models import WorkflowDefinition
 from app.models import WorkflowStatus
-from app.storage import WorkflowStorage
 
 # Initialize test client
 client = TestClient(app)
@@ -61,7 +61,7 @@ def sample_trigger_request():
 
 def test_create_workflow(workflow_storage, sample_workflow):
     """Test creating a workflow."""
-    response = client.post("/api/workflows", json=sample_workflow.model_dump())
+    response = client.post("/api/v1/workflows", json=sample_workflow.model_dump())
     assert response.status_code == 200
     assert response.json() == {
         "message": "Workflow created successfully",
@@ -78,7 +78,7 @@ def test_trigger_workflow(workflow_storage, sample_workflow, sample_trigger_requ
     # First, save the workflow
     workflow_storage.save_workflow(sample_workflow)
 
-    response = client.post("/api/trigger", json=sample_trigger_request.model_dump())
+    response = client.post("/api/v1/trigger", json=sample_trigger_request.model_dump())
     assert response.status_code == 200
     data = response.json()
     assert "run_id" in data
@@ -97,14 +97,14 @@ def test_get_workflow(workflow_storage, sample_workflow):
     # First, save the workflow
     workflow_storage.save_workflow(sample_workflow)
 
-    response = client.get(f"/api/workflows/{sample_workflow.id}")
+    response = client.get(f"/api/v1/workflows/{sample_workflow.id}")
     assert response.status_code == 200
     assert response.json() == sample_workflow.model_dump()
 
 
 def test_get_nonexistent_workflow():
     """Test retrieving a non-existent workflow."""
-    response = client.get("/api/workflows/nonexistent")
+    response = client.get("/api/v1/workflows/nonexistent")
     assert response.status_code == 404
     assert response.json() == {"detail": "Workflow not found"}
 
@@ -113,11 +113,11 @@ def test_get_run(workflow_storage, sample_workflow, sample_trigger_request):
     """Test retrieving a workflow run."""
     # First, save the workflow and trigger it
     workflow_storage.save_workflow(sample_workflow)
-    response = client.post("/api/trigger", json=sample_trigger_request.model_dump())
+    response = client.post("/api/v1/trigger", json=sample_trigger_request.model_dump())
     assert response.status_code == 200
     run_id = response.json()["run_id"]
 
-    response = client.get(f"/api/runs/{run_id}")
+    response = client.get(f"/api/v1/runs/{run_id}")
     assert response.status_code == 200
     run = response.json()
     assert run["id"] == run_id
@@ -126,7 +126,7 @@ def test_get_run(workflow_storage, sample_workflow, sample_trigger_request):
 
 def test_get_nonexistent_run(workflow_storage):
     """Test retrieving a non-existent workflow run."""
-    response = client.get("/api/runs/nonexistent")
+    response = client.get("/api/v1/runs/nonexistent")
     assert response.status_code == 404
     assert response.json() == {"detail": "Workflow run not found"}
 
@@ -135,10 +135,10 @@ def test_list_runs(workflow_storage, sample_workflow, sample_trigger_request):
     """Test listing all workflow runs."""
     # First, save the workflow and trigger it
     workflow_storage.save_workflow(sample_workflow)
-    response = client.post("/api/trigger", json=sample_trigger_request.model_dump())
+    response = client.post("/api/v1/trigger", json=sample_trigger_request.model_dump())
     assert response.status_code == 200
 
-    response = client.get("/api/runs")
+    response = client.get("/api/v1/runs")
     assert response.status_code == 200
     run_ids = response.json()
     assert isinstance(run_ids, list)
@@ -149,7 +149,7 @@ def test_workflow_run_status(workflow_storage, sample_workflow, sample_trigger_r
     """Test the status of a workflow run."""
     # First, save the workflow and trigger it
     workflow_storage.save_workflow(sample_workflow)
-    response = client.post("/api/trigger", json=sample_trigger_request.model_dump())
+    response = client.post("/api/v1/trigger", json=sample_trigger_request.model_dump())
     assert response.status_code == 200
     run_id = response.json()["run_id"]
 

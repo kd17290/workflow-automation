@@ -6,11 +6,11 @@ from fastapi import HTTPException
 from starlette.background import BackgroundTasks
 
 from app.engine import WorkflowEngine
+from app.legacy_storage import WorkflowStorage
 from app.models import TriggerRequest
 from app.models import WorkflowDefinition
 from app.models import WorkflowRun
 from app.models import WorkflowStatus
-from app.storage import WorkflowStorage
 
 router = APIRouter()
 
@@ -19,7 +19,7 @@ storage = WorkflowStorage()
 engine = WorkflowEngine(storage)
 
 
-@router.post("/api/trigger")
+@router.post("/trigger")
 async def trigger_workflow(request: TriggerRequest, background_tasks: BackgroundTasks):
     """Trigger a workflow execution"""
     # Check if workflow exists
@@ -48,14 +48,14 @@ async def trigger_workflow(request: TriggerRequest, background_tasks: Background
     return {"run_id": run_id, "status": "triggered"}
 
 
-@router.post("/api/workflows")
+@router.post("/workflows")
 async def create_workflow(workflow: WorkflowDefinition):
     """Create a new workflow definition"""
     storage.save_workflow(workflow)
     return {"message": "Workflow created successfully", "workflow_id": workflow.id}
 
 
-@router.get("/api/workflows/{workflow_id}")
+@router.get("/workflows/{workflow_id}")
 async def get_workflow(workflow_id: str):
     """Get workflow definition"""
     workflow = storage.load_workflow(workflow_id)
@@ -64,7 +64,7 @@ async def get_workflow(workflow_id: str):
     return workflow
 
 
-@router.get("/api/runs/{run_id}")
+@router.get("/runs/{run_id}")
 async def get_run(run_id: str):
     """Get workflow run details"""
     run = storage.load_run(run_id)
@@ -73,7 +73,7 @@ async def get_run(run_id: str):
     return run
 
 
-@router.get("/api/runs")
+@router.get("/runs")
 async def list_runs():
     """List all workflow runs"""
     run_ids = storage.list_runs()

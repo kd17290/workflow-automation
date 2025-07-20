@@ -3,11 +3,11 @@ from datetime import datetime
 from typing import Any
 
 from app.connector.factory import ConnectorFactory
+from app.legacy_storage import WorkflowStorage
 from app.models import StepResult
 from app.models import StepStatus
 from app.models import WorkflowStatus
 from app.models import WorkflowStep
-from app.storage import WorkflowStorage
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
