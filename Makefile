@@ -4,19 +4,19 @@ TOP_DIR=$(shell git rev-parse --show-toplevel)
 
 .PHONY: build
 build:
-	docker-compose build --no-cache
+	docker-compose build workflow --no-cache
 
 .PHONY: up
 up: install
-	docker-compose up -d
+	docker-compose up -d workflow
 
 .PHONY: down
 down:
-	docker-compose down
+	docker-compose down workflow workflow_db
 
 .PHONY: remove
 remove: down
-	docker-compose run --rm app rm -rf .venv
+	docker-compose run --rm workflow rm -rf .venv
 	docker-compose rm -f
 
 .PHONY: hook
@@ -25,11 +25,12 @@ hook:
 
 .PHONY: lock
 lock:
-	docker-compose run --rm app poetry lock
+	docker-compose run --rm workflow poetry lock
 
 .PHONY: install
 install:
-	docker-compose run --rm app poetry install --only main
+	# Bring up the database service to ensure it is postgres
+	docker-compose run --rm workflow poetry install --only main
 
 .PHONY: lint
 lint:
@@ -37,4 +38,4 @@ lint:
 
 .PHONY: tests
 tests: remove install
-	docker-compose run --rm app poetry run pytest
+	docker-compose run --rm workflow poetry run pytest

@@ -7,3 +7,4 @@ db/
 .tmpdir
 __pycache__/
 data
+.db

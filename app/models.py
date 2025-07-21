@@ -1,3 +1,4 @@
+import datetime
 import logging
 from enum import Enum
 from typing import Annotated
@@ -6,11 +7,16 @@ from typing import Union
 
 from pydantic import BaseModel
 from pydantic import Field
+from sqlalchemy import Column
+from sqlalchemy import DateTime
+from sqlalchemy import Integer
+from sqlalchemy import String
 
 from app.connector.delay import DelayOutput
 from app.connector.delay import DelayWorkflowStep
 from app.connector.webhook import WebhookResponse
 from app.connector.webhook import WebhookWorkflowStep
+from app.session import Base
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -75,3 +81,11 @@ class WorkflowRun(BaseModel):
     completed_at: str | None = None
     error: str | None = None
     step_results: dict[str, StepResult] = Field(default_factory=dict)
+
+
+class HealthStatus(Base):
+    __tablename__ = "health_status"
+
+    id = Column(Integer, primary_key=True, index=True)
+    status = Column(String, default="ok")
+    timestamp = Column(DateTime, default=datetime.datetime.now(datetime.UTC))

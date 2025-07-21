@@ -1,10 +1,11 @@
 # LICENSE HEADER
 
 services:
-  app:
-    image: '${DOCKER_IMAGE_NAME:-app-ms}:${DOCKER_IMAGE_TAG:-latest}'
+  workflow:
+    profiles: [workflow]
+    image: '${DOCKER_IMAGE_NAME:-workflow-ms}:${DOCKER_IMAGE_TAG:-latest}'
     tty: true
-    container_name: app-ms
+    container_name: workflow-ms
     build:
       context: .
       dockerfile: Dockerfile
@@ -14,9 +15,35 @@ services:
     ports:
       - 8001:8001
     restart: always
+    depends_on:
+      - workflow_db
+    environment:
+      POSTGRES_HOST: "${POSTGRES_HOST:-workflow_db}"
+      POSTGRES_DB: "${POSTGRES_DB:-workflow_db}"
+      POSTGRES_USER: "${POSTGRES_USER:-postgres}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-postgres}"
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8001/health" ]
       interval: 30s
       timeout: 5s
       start_period: 5s
       retries: 3
+
+  workflow_db:
+    profiles: [workflow]
+    image: "${POSTGRES_DOCKER_IMAGE_NAME:-postgres}:${POSTGRES_DOCKER_IMAGE_TAG:-16.1}"
+    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: "${POSTGRES_DB:-workflow_db}"
+      POSTGRES_DBNAME: "${POSTGRES_DBNAME:-workflow_db}"
+      POSTGRES_USER: "${POSTGRES_USER:-postgres}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-postgres}"
+    volumes:
+      - .db/app/dev:/var/lib/postgresql/data
