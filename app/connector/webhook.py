@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 
 
 class WebhookConfig(BaseModel):
+    """Configuration for Webhook connector."""
+
     url: str
     method: str
     headers: dict[str, str] = {}
@@ -21,12 +23,16 @@ class WebhookConfig(BaseModel):
 
 
 class WebhookWorkflowStep(BaseModel):
+    """Definition of a Webhook step in a workflow."""
+
     type: Literal[ConnectorType.WEBHOOK] = ConnectorType.WEBHOOK
     name: str
     config: WebhookConfig
 
 
 class WebhookResponse(BaseModel):
+    """Output model for Webhook connector."""
+
     type: Literal[ConnectorType.WEBHOOK] = ConnectorType.WEBHOOK
     status_code: int
     response_data: Any
@@ -35,13 +41,27 @@ class WebhookResponse(BaseModel):
 
 
 class WebhookConnector(BaseConnector):
+    """Connector that makes HTTP requests."""
+
     def __init__(self):
         super().__init__(ConnectorType.WEBHOOK)
 
     async def execute(
         self, step: WebhookWorkflowStep, context: dict[str, Any]
     ) -> WebhookResponse:
-        """Make HTTP request to webhook URL"""
+        """
+        Make HTTP request to webhook URL.
+
+        Args:
+            step (WebhookWorkflowStep): The step configuration.
+            context (dict[str, Any]): The execution context.
+
+        Returns:
+            WebhookResponse: The response from the webhook.
+
+        Raises:
+            ValueError: If an unsupported HTTP method is used.
+        """
         url = step.config.url
         method = step.config.method.upper()
         headers = step.config.headers
@@ -78,7 +98,17 @@ class WebhookConnector(BaseConnector):
         )
 
     def _replace_placeholders(self, data: Any, context: dict[str, Any]) -> Any:
-        """Replace placeholders in data with context values"""
+        """
+        Replace placeholders in data with context values.
+        Supports dictionary, list, and string replacement (e.g., "${key}").
+
+        Args:
+            data (Any): The data containing placeholders.
+            context (dict[str, Any]): The context values.
+
+        Returns:
+            Any: The data with placeholders replaced.
+        """
         if isinstance(data, dict):
             return {k: self._replace_placeholders(v, context) for k, v in data.items()}
         elif isinstance(data, list):

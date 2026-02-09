@@ -1,27 +1,30 @@
-import json
-import os
-import uuid
-from pathlib import Path
 from typing import Generic
 from typing import TypeVar
 
+from app.db.models.run import WorkflowRunModel
+from app.db.models.workflow import WorkflowDefinitionModel
+from app.db.session import SessionLocal
+from app.schemas.run import WorkflowRun
+from app.schemas.workflow import WorkflowDefinition
 from app.storage.base import BaseStorage
 
 T = TypeVar("T")
 
-
-class FileStorage(BaseStorage[T]):
+class DBStorage(BaseStorage[T]):
     def __init__(self, t_type: type[T]):
         """
-        Initialize the file storage.
+        Initialize the DB storage.
 
         Args:
             t_type (type[T]): The type of the item to store.
         """
         super().__init__(t_type)
-        base_path = "data"
-        self.base_path = Path(base_path) / f"{t_type.__name__.lower()}s"
-        self.base_path.mkdir(parents=True, exist_ok=True)
+        if t_type == WorkflowDefinition:
+            self.model = WorkflowDefinitionModel
+        elif t_type == WorkflowRun:
+            self.model = WorkflowRunModel
+        else:
+            raise ValueError(f"Unknown type: {t_type}")
 
     def get(self, uuid: str) -> T | None:
         """
@@ -34,17 +37,13 @@ class FileStorage(BaseStorage[T]):
             T | None: The item if found, else None.
         """
         try:
-            file_path = self.base_path / f"{uuid}.json"
-            if not file_path.exists():
+            db = SessionLocal()
+            item = db.query(self.model).filter(self.model.uuid == uuid).first()
+            if not item:
                 return None
-            with open(file_path, "r") as file:
-                data = json.load(file)
-            return self.t_type(**data)
-        except FileNotFoundError:
-            return None
-        except Exception as e:
-            print(f"Error retrieving item {uuid}: {e}")
-            return None
+            return self.t_type.model_validate(item, from_attributes=True)
+        finally:
+            db.close()
 
     def create(self, item: T) -> str:
         """
@@ -56,16 +55,20 @@ class FileStorage(BaseStorage[T]):
         Returns:
             str: The UUID of the created item.
         """
-        item.uuid = uuid.uuid4().hex
+        item.uuid = self.generate_uuid()
         try:
-            file_path = self.base_path / f"{item.uuid}.json"
-            print(f"Saving workflow to {file_path=}")
-            with open(file_path, "w") as file:
-                json.dump(item.model_dump(), file, indent=2)
+            db = SessionLocal()
+            db_item = self.model(**item.model_dump())
+            db.add(db_item)
+            db.commit()
+            db.refresh(db_item)
             return item.uuid
         except Exception as e:
             print(f"Error creating item: {e}")
-            return ""
+            db.rollback()
+            raise e
+        finally:
+            db.close()
 
     def delete(self, uuid: str) -> bool:
         """
@@ -78,14 +81,19 @@ class FileStorage(BaseStorage[T]):
             bool: True if deleted, False if not found.
         """
         try:
-            file_path = self.base_path / f"{uuid}.json"
-            if not self.get(uuid):
+            db = SessionLocal()
+            item = db.query(self.model).filter(self.model.uuid == uuid).first()
+            if not item:
                 return False
-            os.remove(file_path)
+            db.delete(item)
+            db.commit()
             return True
         except Exception as e:
             print(f"Error deleting item {uuid}: {e}")
+            db.rollback()
             return False
+        finally:
+            db.close()
 
     def update(self, item: T) -> bool:
         """
@@ -98,15 +106,20 @@ class FileStorage(BaseStorage[T]):
             bool: True if updated, False if not found.
         """
         try:
-            if not self.get(item.uuid):
+            db = SessionLocal()
+            db_item = db.query(self.model).filter(self.model.uuid == item.uuid).first()
+            if not db_item:
                 return False
-            file_path = self.base_path / f"{item.uuid}.json"
-            with open(file_path, "w") as file:
-                json.dump(item.model_dump(), file)
+            for key, value in item.model_dump().items():
+                setattr(db_item, key, value)
+            db.commit()
             return True
         except Exception as e:
             print(f"Error updating item {item.uuid}: {e}")
+            db.rollback()
             return False
+        finally:
+            db.close()
 
     def list_all(self) -> list[T]:
         """
@@ -116,15 +129,8 @@ class FileStorage(BaseStorage[T]):
             list[T]: A list of all items.
         """
         try:
-            # Read all JSON files in the directory
-            items = []
-            for file in self.base_path.glob("*.json"):
-                if file.is_file():
-                    item = self.get(file.stem)
-                    if item:
-                        items.append(item)
-            return items
-
-        except Exception as e:
-            print(f"Error listing items: {e}")
-            return []
+            db = SessionLocal()
+            items = db.query(self.model).all()
+            return [self.t_type.model_validate(item, from_attributes=True) for item in items]
+        finally:
+            db.close()

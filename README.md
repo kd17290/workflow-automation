@@ -1,183 +1,236 @@
-Postman collection [workflow automation.postman_collection.json](workflow%20automation.postman_collection.json)
+# Workflow Automation Platform
 
-Scaling Plan [Scaling Plan.md](Scaling%20Plan.md)
-# Workflow Automation
+A production-ready workflow automation platform built with FastAPI, PostgreSQL, and Apache Kafka for async execution.
 
-## Overview
-A Python-based workflow automation system designed to define, execute, and manage automated workflows. The project supports extensible connectors, persistent storage, and API integration.
+## 🏗️ Architecture
 
-## Features
-- Define workflows using JSON files
-- Execute and monitor workflow runs
-- Extensible connector system (webhooks, delays, etc.)
-- REST API for workflow management
-- Dockerized deployment
+```mermaid
+graph TB
+    subgraph "Client Layer"
+        C[Client / API Consumer]
+    end
 
-## Installation
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/kd17290/workflow-automation.git
-   cd workflow-automation
-   ```
-
-2. Build the docker image:
-   ```bash
-   make build
-   ```
-
-3. Start the service:
-   ```bash
-   make up
-   ```
-
-## Usage
-Checkout the swagger documentation at `http://localhost:8001/docs` for interactive API usage.
-Check the logs
-
-```bash
-    docker container logs -f --tail 1000 workflow_automation
+    subgraph "API Layer"
+        API[FastAPI Service<br/>Port 8001]
+    end
+    
+    subgraph "Message Broker"
+        K[Apache Kafka<br/>Port 9092]
+        ZK[Zookeeper<br/>Port 2181]
+    end
+    
+    subgraph "Worker Layer"
+        W1[Worker 1]
+        W2[Worker N...]
+    end
+    
+    subgraph "Storage"
+        PG[(PostgreSQL<br/>Port 5432)]
+    end
+    
+    C -->|HTTP Requests| API
+    API -->|1. Publish workflow.trigger| K
+    K -->|2. Consume| W1
+    K -->|2. Consume| W2
+    W1 -->|3. Execute & Update| PG
+    W1 -->|4. Publish workflow.completed| K
+    API -->|Read status| PG
+    
+    ZK -.->|Manage| K
 ```
 
-# Architecture
-## Event-Driven Design
-- HTTP triggers create workflow runs
-- Background tasks execute workflows asynchronously
-- Each step publishes results to the next step
+## 📋 Features
 
-## Connector Abstraction
-- BaseConnector interface for all connectors
-- Pluggable architecture for adding new connector types
-- Context passing between steps
+- **REST API**: FastAPI-powered endpoints for workflow management
+- **Async Execution**: Kafka-based message queue for decoupled processing
+- **Multiple Storage Backends**: InMemory, FileSystem, PostgreSQL
+- **Horizontal Scaling**: Multiple workers can process workflows
+- **Fault Tolerance**: Kafka provides message durability and retries
+- **Dockerized**: All services run in containers, no local dependencies
 
-## Data Flow
-1. Trigger: HTTP request creates workflow run
-2. Execution: Background task processes steps sequentially
-3. Logging: Each step result is persisted
-4. Completion: Final status is saved
+## 🚀 Quick Start
 
-## API Endpoints
+### Prerequisites
+- Docker & Docker Compose
 
-### Create a Workflow
+### Run the Application
 
-**POST** `/api/workflows`
+```bash
+# Start all services
+make up
 
-Example request body:
-```json
-{
-  "id": "example_workflow",
-  "name": "Example Notification Workflow",
-  "description": "A simple workflow that delays and then sends a webhook notification",
-  "steps": [
-    {
-      "name": "wait_step",
-      "type": "delay",
-      "config": {
-        "duration": 2
-      }
-    },
-    {
-      "name": "notify_step",
-      "type": "webhook",
-      "config": {
+# View logs
+docker-compose logs -f
+
+# Stop services
+make down
+```
+
+### Access the API
+
+- **Swagger UI**: http://localhost:8001/docs
+- **Health Check**: http://localhost:8001/health
+- **OpenAPI Spec**: http://localhost:8001/api/v1/openapi.json
+
+## 📚 API Endpoints
+
+### Workflows
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/workflows` | Create a workflow |
+| GET | `/api/v1/workflows/{id}` | Get a workflow |
+
+### Workflow Runs
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/trigger` | Trigger async execution |
+| GET | `/api/v1/runs` | List all runs |
+| GET | `/api/v1/runs/{id}` | Get run status |
+
+### Example: Create and Trigger a Workflow
+
+```bash
+# 1. Create a workflow
+curl -X POST http://localhost:8001/api/v1/workflows \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "my-workflow",
+    "name": "Demo Workflow",
+    "description": "A sample workflow",
+    "steps": [
+      {"name": "delay", "type": "delay", "config": {"duration": 2}},
+      {"name": "notify", "type": "webhook", "config": {
         "url": "https://httpbin.org/post",
         "method": "POST",
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "body": {
-          "message": "Workflow completed",
-          "user_data": "${payload.user_id}",
-          "timestamp": "${payload.timestamp}"
-        }
-      }
-    }
-  ]
-}
+        "headers": {"Content-Type": "application/json"},
+        "body": {"message": "Hello from workflow!"}
+      }}
+    ]
+  }'
+
+# 2. Trigger the workflow
+curl -X POST http://localhost:8001/api/v1/trigger \
+  -H "Content-Type: application/json" \
+  -d '{"workflow_id": "<workflow_uuid>", "payload": {"user": "demo"}}'
+
+# 3. Check run status
+curl http://localhost:8001/api/v1/runs/<run_id>
 ```
 
-### Retrieve a Workflow
+## 🧪 Testing
 
-**GET** `/api/workflows/{workflow_id}/`
-
-Example:
-```
-GET localhost:8001/api/workflows/example_workflow/
-```
-
-### Trigger a Workflow
-
-**POST** `/api/trigger/`
-
-Example request body:
-```json
-{
-  "workflow_id": "example_workflow",
-  "payload": {
-    "user_id": "user123",
-    "timestamp": "2025-07-07T10:00:00Z",
-    "event": "user_signup"
-  }
-}
-```
-
-### Retrieve a Run
-
-**GET** `/api/runs/{run_id}`
-
-Example:
-```
-GET localhost:8001/api/runs/95d1610f-9bb9-43f3-959e-7e52fcaaf31d
-```
-
-### List All Runs
-
-**GET** `/api/runs/`
-
-Example:
-```
-GET localhost:8001/api/runs/
-```
-
-## Project Structure
-
-- `app/` - Core application logic
-  - `main.py` - Application entry point
-  - `api.py` - REST API implementation
-  - `engine.py` - Workflow execution engine
-  - `models.py` - Data models
-  - `storage.py` - Persistence layer
-- `connector/` - Workflow connectors (webhook, delay, etc.)
-- `data/` - Workflow and run data
-- `Dockerfile` - Containerization setup
-- `docker-compose.yml` - Multi-container orchestration
-- `Makefile` - Common development commands
-- `pyproject.toml` / `poetry.lock` - Dependency management
-
-## Contributing
-
-1. Fork the repository
-2. Create a new branch (`git checkout -b feature/your-feature`)
-3. Run
 ```bash
-    make lint
-```
-   to ensure linter pass
+# Run all tests
+make tests
 
-4. Run
+# Run specific test file
+docker-compose run --rm workflow poetry run pytest tests/test_messaging.py -v
+```
+
+### Test Coverage
+
+| Module | Tests |
+|--------|-------|
+| Storage (InMemory) | 7 |
+| Storage (FileSystem) | 7 |
+| Storage (PostgreSQL) | 10 |
+| Messaging (Kafka) | 8 |
+| Worker | 3 |
+| API Integration | 18 |
+
+## 📁 Project Structure
+
+```
+workflow-automation/
+├── app/
+│   ├── api/
+│   │   └── v1/
+│   │       └── endpoints/      # API routes
+│   ├── core/
+│   │   └── config.py           # Configuration
+│   ├── db/
+│   │   ├── models/             # SQLAlchemy models
+│   │   └── session.py          # DB session
+│   ├── messaging/
+│   │   ├── kafka.py            # Kafka producer/consumer
+│   │   └── events.py           # Event schemas
+│   ├── schemas/                # Pydantic schemas
+│   ├── services/               # Business logic
+│   ├── storage/                # Storage backends
+│   └── worker/
+│       └── main.py             # Kafka worker
+├── tests/                      # Test files
+├── docker-compose.yml
+├── Dockerfile
+├── Makefile
+└── pyproject.toml
+```
+
+## ⚙️ Configuration
+
+Environment variables (set in `docker-compose.yml` or `.env`):
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `POSTGRES_HOST` | `workflow_db` | PostgreSQL host |
+| `POSTGRES_DB` | `workflow_db` | Database name |
+| `POSTGRES_USER` | `postgres` | DB username |
+| `POSTGRES_PASSWORD` | `postgres` | DB password |
+| `KAFKA_BOOTSTRAP_SERVERS` | `kafka:9092` | Kafka brokers |
+| `KAFKA_CONSUMER_GROUP` | `workflow-workers` | Consumer group |
+
+## 🔧 Development
+
 ```bash
-    make tests
+# Format code
+make format
+
+# Install dependencies locally (for IDE support)
+poetry install
+
+# Run tests with coverage
+docker-compose run --rm workflow poetry run pytest --cov=app --cov-report=html
 ```
-   to ensure tests passes
 
-5. Commit your changes
-6Push to your branch and open a pull request
+## 🐳 Docker Services
 
-## License
+| Service | Image | Port |
+|---------|-------|------|
+| `workflow` | custom | 8001 |
+| `worker` | custom | - |
+| `workflow_db` | postgres:16.1 | 5433 |
+| `kafka` | confluentinc/cp-kafka:7.5.0 | 9092 |
+| `zookeeper` | confluentinc/cp-zookeeper:7.5.0 | 2181 |
 
-Specify your license here (e.g., MIT, Apache 2.0).
+## 📊 Event Flow
 
-## Contact
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant API as FastAPI
+    participant K as Kafka
+    participant W as Worker
+    participant DB as PostgreSQL
 
-For questions or support, contact author.
+    C->>API: POST /trigger
+    API->>DB: Create Run (PENDING)
+    API->>K: Publish workflow.trigger
+    API->>C: {run_id, status: triggered}
+    
+    K->>W: Consume message
+    W->>DB: Update (RUNNING)
+    W->>W: Execute steps
+    W->>DB: Update (SUCCESS/FAILED)
+    W->>K: Publish workflow.completed
+    
+    C->>API: GET /runs/{id}
+    API->>DB: Read Run
+    API->>C: {status, results}
 ```
-This version includes detailed API endpoint documentation and example requests for easier onboarding and usage.
+
+## 📝 License
+
+MIT License

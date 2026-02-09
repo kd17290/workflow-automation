@@ -3,14 +3,11 @@ from datetime import datetime
 from typing import Any
 
 from app.connector.factory import ConnectorFactory
-from app.models import StepResult
-from app.models import StepStatus
-from app.models import WorkflowDefinition
-from app.models import WorkflowRun
-from app.models import WorkflowStatus
-from app.models import WorkflowStep
-from app.repository.workflow_repository import WorkflowRepository
-from app.repository.workflow_run_repository import WorkflowRunRepository
+from app.schemas.workflow import StepResult, WorkflowDefinition, WorkflowStep
+from app.schemas.run import WorkflowRun
+from app.schemas.common import StepStatus, WorkflowStatus
+from app.repositories.workflow import WorkflowRepository
+from app.repositories.run import WorkflowRunRepository
 from app.storage.enum import StorageType
 from app.storage.factory import StorageFactory
 
@@ -23,9 +20,12 @@ class WorkflowService:
     def __init__(self, storage: StorageType):
         """
         Initialize the WorkflowService with a specific storage type.
-        :param storage: The type of storage to use (e.g., "file_system", "in_memory").
-        :type storage: StorageType
-        :raises ValueError: If the storage type is unknown.
+
+        Args:
+            storage (StorageType): The type of storage to use (e.g., StorageType.FILE_SYSTEM).
+
+        Raises:
+            ValueError: If the storage type is unknown.
         """
         storage_cls = StorageFactory.create_storage(storage)
 
@@ -36,28 +36,77 @@ class WorkflowService:
         self.workflow_repository = WorkflowRepository(workflow_storage)
         self.workflow_run_repository = WorkflowRunRepository(workflow_run_storage)
 
-    def create_workflow(self, workflow: WorkflowDefinition):
-        """Create a new workflow."""
+    def create_workflow(self, workflow: WorkflowDefinition) -> str:
+        """
+        Create a new workflow definition.
+
+        Args:
+            workflow (WorkflowDefinition): The workflow definition to create.
+
+        Returns:
+            str: The UUID of the created workflow.
+        """
         return self.workflow_repository.create_workflow(workflow)
 
     def load_workflow(self, uuid: str) -> WorkflowDefinition:
-        """Load a workflow by its UUID."""
+        """
+        Load a workflow definition by its UUID.
+
+        Args:
+            uuid (str): The UUID of the workflow to load.
+
+        Returns:
+            WorkflowDefinition: The workflow definition, or None if not found.
+        """
         return self.workflow_repository.get_workflow(uuid)
 
-    def create_workflow_run(self, workflow_run):
-        """Create a new workflow run."""
+    def create_workflow_run(self, workflow_run: WorkflowRun) -> str:
+        """
+        Create a new workflow run.
+
+        Args:
+            workflow_run (WorkflowRun): The workflow run object to save.
+
+        Returns:
+            str: The UUID of the created workflow run.
+        """
         return self.workflow_run_repository.create_workflow_run(workflow_run)
 
-    def load_workflow_run(self, uuid: str):
-        """Load a workflow run by its UUID."""
+    def load_workflow_run(self, uuid: str) -> WorkflowRun:
+        """
+        Load a workflow run by its UUID.
+
+        Args:
+            uuid (str): The UUID of the workflow run to load.
+
+        Returns:
+            WorkflowRun: The workflow run object, or None if not found.
+        """
         return self.workflow_run_repository.get_workflow_run(uuid)
 
-    def list_runs(self):
-        """List all workflow runs."""
+    def list_runs(self) -> list[WorkflowRun]:
+        """
+        List all workflow runs.
+
+        Returns:
+            list[WorkflowRun]: A list of all workflow runs.
+        """
         return self.workflow_run_repository.list_workflow_runs()
 
     async def execute_workflow(self, run_id: str):
-        """Execute a workflow run by its ID."""
+        """
+        Execute a workflow run.
+
+        Args:
+            run_id (str): The UUID of the workflow run to execute.
+
+        This method:
+            1. Loads the run and workflow definition.
+            2. Updates status to RUNNING.
+            3. Iterates through steps sequentially, passing context.
+            4. Handling step retries (if implemented) or failure.
+            5. Updates final status to SUCCESS or FAILED.
+        """
         # This method would contain the logic to execute the workflow.
         # For now, we will just return a placeholder message.
         run = self.load_workflow_run(run_id)
@@ -108,7 +157,16 @@ class WorkflowService:
             self.workflow_run_repository.update_workflow_run(run)
 
     async def _execute_step(self, step: WorkflowStep, context: dict[str, Any]):
-        """Execute a single workflow step."""
+        """
+        Execute a single workflow step.
+
+        Args:
+            step (WorkflowStep): The step definition.
+            context (dict[str, Any]): The execution context containing payload and previous step outputs.
+
+        Returns:
+            StepResult: The result of the step execution.
+        """
         """This method would contain the logic to execute a single step."""
         result = StepResult(
             step_name=step.name,

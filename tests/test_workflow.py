@@ -1,33 +1,46 @@
 # create API testcases
 import pytest
+from sqlalchemy import text
 from fastapi.testclient import TestClient
 
-from app.main import app
-from app.models import TriggerRequest
-from app.models import WorkflowDefinition
-from app.models import WorkflowStatus
-from app.storage.enum import StorageType
-from app.workflow_service import WorkflowService
+from unittest.mock import AsyncMock, patch
 
-# Initialize test client
+from app.api.deps import get_workflow_service
+from app.main import app
+from app.schemas.workflow import TriggerRequest
+from app.schemas.workflow import WorkflowDefinition
+from app.schemas.common import WorkflowStatus
+from app.storage.enum import StorageType
+from app.services.workflow import WorkflowService
 
 
 @pytest.fixture
 def client():
     """Fixture to provide a FastAPI test client."""
-    yield TestClient(app)
+    with TestClient(app) as c:
+        yield c
 
 
-@pytest.fixture
-def file_system_workflow_service():
-    """Fixture to provide a fresh WorkflowStorage instance for each test."""
-    yield WorkflowService(StorageType.IN_MEMORY)
+@pytest.fixture(params=[StorageType.IN_MEMORY, StorageType.FILE_SYSTEM, StorageType.POSTGRES])
+def workflow_service(request):
+    """Fixture to provide a fresh WorkflowService instance for each test."""
+    storage_type = request.param
+    service = WorkflowService(storage_type)
+
+    # Override the dependency
+    app.dependency_overrides[get_workflow_service] = lambda: service
+    yield service
+    # Clear overrides
+    app.dependency_overrides = {}
 
 
-@pytest.fixture
-def in_memory_workflow_service():
-    """Fixture to provide a fresh WorkflowStorage instance for each test."""
-    yield WorkflowService(StorageType.IN_MEMORY)
+@pytest.fixture(autouse=True)
+def mock_kafka():
+    """Mock Kafka producer for all tests in this module."""
+    with patch("app.api.v1.endpoints.trigger.KafkaProducer") as mock_producer_class:
+        mock_producer = AsyncMock()
+        mock_producer_class.return_value = mock_producer
+        yield mock_producer
 
 
 @pytest.fixture
@@ -70,11 +83,7 @@ def sample_trigger_request():
     )
 
 
-@pytest.mark.parametrize(
-    "workflow_service_fixture",
-    ["file_system_workflow_service", "in_memory_workflow_service"],
-)
-def test_get_workflow(client, workflow_service_fixture, sample_workflow):
+def test_get_workflow(client, workflow_service, sample_workflow):
     """Test retrieving a workflow."""
     # First create the workflow
     response = client.post("/api/v1/workflows", json=sample_workflow.model_dump())
@@ -88,12 +97,8 @@ def test_get_workflow(client, workflow_service_fixture, sample_workflow):
     assert response.json()["name"] == "Test Workflow"
 
 
-@pytest.mark.parametrize(
-    "workflow_service_fixture",
-    ["file_system_workflow_service", "in_memory_workflow_service"],
-)
 def test_trigger_workflow(
-    client, workflow_service_fixture, sample_workflow, sample_trigger_request
+    client, workflow_service, sample_workflow, sample_trigger_request
 ):
     """Test triggering a workflow execution."""
     # First create the workflow
@@ -109,13 +114,7 @@ def test_trigger_workflow(
     assert response.json()["status"] == "triggered"
 
 
-@pytest.mark.parametrize(
-    "workflow_service_fixture",
-    ["file_system_workflow_service", "in_memory_workflow_service"],
-)
-def test_get_run(
-    client, workflow_service_fixture, sample_workflow, sample_trigger_request
-):
+def test_get_run(client, workflow_service, sample_workflow, sample_trigger_request):
     """Test retrieving a workflow run."""
     # First create the workflow
     response = client.post("/api/v1/workflows", json=sample_workflow.model_dump())
@@ -138,13 +137,7 @@ def test_get_run(
     ]
 
 
-@pytest.mark.parametrize(
-    "workflow_service_fixture",
-    ["file_system_workflow_service", "in_memory_workflow_service"],
-)
-def test_list_runs(
-    client, workflow_service_fixture, sample_workflow, sample_trigger_request
-):
+def test_list_runs(client, workflow_service, sample_workflow, sample_trigger_request):
     """Test listing all workflow runs."""
     # First create the workflow
     response = client.post("/api/v1/workflows", json=sample_workflow.model_dump())
@@ -162,11 +155,7 @@ def test_list_runs(
     assert len(response.json()) > 0
 
 
-@pytest.mark.parametrize(
-    "workflow_service_fixture",
-    ["file_system_workflow_service", "in_memory_workflow_service"],
-)
-def test_create_workflow_invalid(client, workflow_service_fixture):
+def test_create_workflow_invalid(client, workflow_service):
     """Test creating a workflow with invalid data."""
     response = client.post("/api/v1/workflows", json={"name": "Invalid Workflow"})
     assert response.status_code == 422  # Unprocessable Entity
@@ -175,45 +164,29 @@ def test_create_workflow_invalid(client, workflow_service_fixture):
     assert response.json()["detail"][0]["msg"] == "Field required"
 
 
-@pytest.mark.parametrize(
-    "workflow_service_fixture",
-    ["file_system_workflow_service", "in_memory_workflow_service"],
-)
-def test_trigger_workflow_invalid(client, workflow_service_fixture):
+def test_trigger_workflow_invalid(client, workflow_service):
     """Test triggering a workflow with invalid data."""
     response = client.post("/api/v1/trigger", json={"workflow_id": "non_existent"})
     assert response.status_code == 404  # Not Found
     assert response.json()["detail"] == "Workflow non_existent not found"
 
 
-@pytest.mark.parametrize(
-    "workflow_service_fixture",
-    ["file_system_workflow_service", "in_memory_workflow_service"],
-)
-def test_get_run_not_found(client, workflow_service_fixture):
+def test_get_run_not_found(client, workflow_service):
     """Test retrieving a non-existent workflow run."""
     response = client.get("/api/v1/runs/non_existent_run")
     assert response.status_code == 404  # Not Found
     assert response.json()["detail"] == "Workflow run not found"
 
 
-@pytest.mark.parametrize(
-    "workflow_service_fixture",
-    ["file_system_workflow_service", "in_memory_workflow_service"],
-)
-def test_list_runs_empty(client, workflow_service_fixture):
+def test_list_runs_empty(client, workflow_service):
     """Test listing runs when no runs exist."""
     response = client.get("/api/v1/runs")
     assert response.status_code == 200
     assert isinstance(response.json(), list)
 
 
-@pytest.mark.parametrize(
-    "workflow_service_fixture",
-    ["file_system_workflow_service", "in_memory_workflow_service"],
-)
 def test_workflow_run_status(
-    client, workflow_service_fixture, sample_workflow, sample_trigger_request
+    client, workflow_service, sample_workflow, sample_trigger_request
 ):
     """Test the status of a workflow run."""
     # First create the workflow

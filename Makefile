@@ -1,6 +1,7 @@
 # LICENSE HEADER
 
 TOP_DIR=$(shell git rev-parse --show-toplevel)
+export COMPOSE_PROFILES=workflow
 
 .PHONY: build
 build:
@@ -12,7 +13,7 @@ up: install
 
 .PHONY: down
 down:
-	docker-compose down workflow workflow_db
+	docker-compose down workflow workflow_db kafka zookeeper worker
 
 .PHONY: remove
 remove: down

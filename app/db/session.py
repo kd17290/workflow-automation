@@ -5,26 +5,24 @@ from typing import Any
 from pydantic_core import to_jsonable_python
 from sqlalchemy import create_engine
 from sqlalchemy import Engine
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import sessionmaker
 
-POSTGRES_HOST = os.getenv("POSTGRES_HOST")
-POSTGRES_DB = os.getenv("POSTGRES_DB")
-POSTGRES_USER = os.getenv("POSTGRES_USER")
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+from app.core.config import settings
 
 engine_by_schema: dict[str, Engine] = {}
 session_factory_by_schema: dict[str, sessionmaker[Session]] = {}
 
 
 def json_serializer(*args: Any, **kwargs: Any) -> str:
+    """
+    JSON serializer for SQLAlchemy that handles Pydantic models and other types.
+    """
     return json.dumps(*args, default=to_jsonable_python, **kwargs)
 
 
-DB_URL = (
-    f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}"
-)
+DB_URL = f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}/{settings.POSTGRES_DB}"
 
 engine = create_engine(
     DB_URL,
@@ -41,4 +39,8 @@ SessionLocal = sessionmaker(
     bind=engine,
 )
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    """Base class for all SQLAlchemy ORM models."""
+
+    pass

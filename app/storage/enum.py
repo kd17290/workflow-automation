@@ -8,4 +8,5 @@ class StorageType(str, Enum):
 
     FILE_SYSTEM = "file_system"
     IN_MEMORY = "in_memory"
+    POSTGRES = "postgres"
     # Add more storage types as needed

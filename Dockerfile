@@ -2,7 +2,7 @@ FROM python:3.13-slim
 
 RUN echo "Installing System Packages" && \
     apt update && \
-    apt-get -y install locales wait-for-it git bash-completion libpq-dev wget && \
+    apt-get -y install locales wait-for-it git bash-completion libpq-dev wget curl gcc build-essential python3-dev && \
     pip install --upgrade pip && \
     pip install pipx==1.7.1 && \
     echo "Clean apt cache and unneeded pkgs" && \

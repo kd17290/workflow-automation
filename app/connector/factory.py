@@ -14,8 +14,15 @@ class ConnectorFactory:
     def get_instance(connector_type: ConnectorType):
         """
         Create an instance of the specified connector type.
-        :param connector_type: The type of connector to create.
-        :return: An instance of the specified connector.
+
+        Args:
+            connector_type (ConnectorType): The type of connector to create.
+
+        Returns:
+            BaseConnector: An instance of the specified connector.
+
+        Raises:
+            ValueError: If the connector type is unknown.
         """
         for connector in CONNECTORS:
             if connector.type == connector_type:
