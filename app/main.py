@@ -4,10 +4,11 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI
 
-from app.api.deps import get_db
+from app.api.deps import get_db, set_kafka_producer
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.db.session import SessionLocal, engine, Base
+from app.messaging.kafka import KafkaProducer
 from app.repositories.health import save_health_status
 
 load_dotenv()
@@ -37,15 +38,26 @@ async def lifespan(app: FastAPI):
     """
     Lifespan context manager for the FastAPI application.
 
-    Handles startup and shutdown events, such as initializing background tasks.
+    Handles startup and shutdown events, such as initializing background tasks
+    and the shared Kafka producer.
 
     Args:
         app (FastAPI): The FastAPI application instance.
     """
     print("Starting up...")
+
+    # Initialize Kafka producer at startup (prevents race condition under load)
+    producer = KafkaProducer()
+    await producer.start()
+    set_kafka_producer(producer)
+    print("Kafka producer initialized at startup")
+
     task = asyncio.create_task(health_status_task())
     yield
-    # Clean up the task if necessary, though for now we just let it run until shutdown
+
+    # Shutdown: stop Kafka producer
+    await producer.stop()
+    print("Kafka producer stopped")
 
 
 app = FastAPI(

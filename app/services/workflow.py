@@ -93,6 +93,23 @@ class WorkflowService:
         """
         return self.workflow_run_repository.list_workflow_runs()
 
+    def list_runs_paginated(
+        self, limit: int = 50, cursor: str | None = None
+    ) -> tuple[list[WorkflowRun], str | None]:
+        """
+        List workflow runs with cursor-based pagination.
+
+        Args:
+            limit: Maximum number of runs to return.
+            cursor: UUID cursor for pagination.
+
+        Returns:
+            tuple: (list of runs, next_cursor or None).
+        """
+        return self.workflow_run_repository.list_workflow_runs_paginated(
+            limit=limit, cursor=cursor
+        )
+
     async def execute_workflow(self, run_id: str):
         """
         Execute a workflow run.

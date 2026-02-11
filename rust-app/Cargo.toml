@@ -1,0 +1,61 @@
+[package]
+name = "workflow-automation"
+version = "1.0.0"
+edition = "2021"
+description = "Workflow Automation - Rust Implementation"
+authors = ["Kuldeep K"]
+
+[[bin]]
+name = "api"
+path = "src/bin/api.rs"
+
+[[bin]]
+name = "worker"
+path = "src/bin/worker.rs"
+
+[dependencies]
+# Web framework
+actix-web = "4"
+actix-rt = "2"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Database
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "json", "chrono", "uuid"] }
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Kafka
+rdkafka = { version = "0.36", features = ["cmake-build"] }
+
+# HTTP client (for webhook connector)
+reqwest = { version = "0.12", features = ["json"] }
+
+# Configuration
+dotenvy = "0.15"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# UUID generation
+uuid = { version = "1", features = ["v4"] }
+
+# Chrono for timestamps
+chrono = { version = "0.4", features = ["serde"] }
+
+# Async trait
+async-trait = "0.1"
+
+# Stream utilities (for Kafka consumer)
+tokio-stream = "0.1"
+
+# Redis cache
+redis = { version = "0.27", features = ["tokio-comp"] }
+
+# Error handling
+thiserror = "2"
+anyhow = "1"

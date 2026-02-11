@@ -1,6 +1,7 @@
 """
 Kafka producer and consumer implementations.
 """
+import asyncio
 import json
 import logging
 from typing import Any, Callable, Awaitable
@@ -17,6 +18,9 @@ logger = logging.getLogger(__name__)
 class KafkaProducer:
     """
     Async Kafka producer for publishing events.
+
+    Uses asyncio.Lock to prevent race conditions during lazy initialization
+    when multiple concurrent requests try to start the producer simultaneously.
     """
 
     def __init__(self, bootstrap_servers: str | None = None):
@@ -28,23 +32,29 @@ class KafkaProducer:
         """
         self._bootstrap_servers = bootstrap_servers or settings.KAFKA_BOOTSTRAP_SERVERS
         self._producer: AIOKafkaProducer | None = None
+        self._lock = asyncio.Lock()
 
     async def start(self) -> None:
-        """Start the Kafka producer connection."""
-        if self._producer is None:
-            self._producer = AIOKafkaProducer(
-                bootstrap_servers=self._bootstrap_servers,
-                value_serializer=lambda v: json.dumps(v).encode("utf-8"),
-            )
-            await self._producer.start()
-            logger.info(f"Kafka producer started: {self._bootstrap_servers}")
+        """Start the Kafka producer connection (thread-safe with asyncio.Lock)."""
+        async with self._lock:
+            if self._producer is None:
+                self._producer = AIOKafkaProducer(
+                    bootstrap_servers=self._bootstrap_servers,
+                    value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+                    max_batch_size=32768,
+                    linger_ms=10,
+                    acks="all",
+                )
+                await self._producer.start()
+                logger.info(f"Kafka producer started: {self._bootstrap_servers}")
 
     async def stop(self) -> None:
         """Stop the Kafka producer connection."""
-        if self._producer is not None:
-            await self._producer.stop()
-            self._producer = None
-            logger.info("Kafka producer stopped")
+        async with self._lock:
+            if self._producer is not None:
+                await self._producer.stop()
+                self._producer = None
+                logger.info("Kafka producer stopped")
 
     async def send(self, topic: str, value: dict[str, Any], key: str | None = None) -> None:
         """

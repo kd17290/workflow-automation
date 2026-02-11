@@ -72,5 +72,19 @@ class WorkflowRunRepository:
         Returns:
             list[WorkflowRun]: A list of all workflow runs.
         """
-        # Assuming the storage has a method to list all items
         return self.storage.list_all()
+
+    def list_workflow_runs_paginated(
+        self, limit: int = 50, cursor: str | None = None
+    ) -> tuple[list[WorkflowRun], str | None]:
+        """
+        List workflow runs with cursor-based pagination.
+
+        Args:
+            limit: Maximum number of runs to return.
+            cursor: UUID cursor for pagination.
+
+        Returns:
+            tuple: (list of runs, next_cursor or None).
+        """
+        return self.storage.list_paginated(limit=limit, cursor=cursor)

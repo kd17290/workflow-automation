@@ -22,7 +22,7 @@ def json_serializer(*args: Any, **kwargs: Any) -> str:
     return json.dumps(*args, default=to_jsonable_python, **kwargs)
 
 
-DB_URL = f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}/{settings.POSTGRES_DB}"
+DB_URL = f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"
 
 engine = create_engine(
     DB_URL,
@@ -30,6 +30,9 @@ engine = create_engine(
     future=True,
     pool_pre_ping=True,
     pool_recycle=3600,
+    pool_size=50,
+    max_overflow=20,
+    pool_timeout=30,
     json_serializer=json_serializer,
 )
 

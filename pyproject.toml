@@ -17,6 +17,7 @@ sqlalchemy = "2.0.41"
 psycopg2-binary = "^2.9.10"
 pydantic-settings = "^2.0.0"
 aiokafka = "^0.10.0"
+redis = "^5.0.0"
 pytest-asyncio = "^0.23.0"
 
 [tool.poetry.group.dev.dependencies]

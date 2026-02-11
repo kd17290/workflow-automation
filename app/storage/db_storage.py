@@ -134,3 +134,32 @@ class DBStorage(BaseStorage[T]):
             return [self.t_type.model_validate(item, from_attributes=True) for item in items]
         finally:
             db.close()
+
+    def list_paginated(self, limit: int = 50, cursor: str | None = None) -> tuple[list[T], str | None]:
+        """
+        List items with cursor-based pagination, ordered by uuid.
+
+        Args:
+            limit: Maximum number of items to return.
+            cursor: UUID cursor — return items with uuid > cursor.
+
+        Returns:
+            tuple: (list of items, next_cursor or None if no more items).
+        """
+        try:
+            db = SessionLocal()
+            query = db.query(self.model).order_by(self.model.uuid)
+            if cursor:
+                query = query.filter(self.model.uuid > cursor)
+            items = query.limit(limit + 1).all()
+
+            has_more = len(items) > limit
+            items = items[:limit]
+            next_cursor = items[-1].uuid if has_more and items else None
+
+            return (
+                [self.t_type.model_validate(item, from_attributes=True) for item in items],
+                next_cursor,
+            )
+        finally:
+            db.close()

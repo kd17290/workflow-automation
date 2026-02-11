@@ -82,6 +82,21 @@ class BaseStorage(ABC, Generic[T]):
         """
         ...
 
+    def list_paginated(self, limit: int = 50, cursor: str | None = None) -> tuple[list[T], str | None]:
+        """
+        List items with cursor-based pagination.
+
+        Args:
+            limit: Maximum number of items to return.
+            cursor: UUID cursor for pagination.
+
+        Returns:
+            tuple: (list of items, next_cursor or None).
+        """
+        # Default implementation falls back to list_all (for non-DB backends)
+        items = self.list_all()
+        return items[:limit], None
+
     def generate_uuid(self) -> str:
         """Generate a new UUID."""
         return uuid.uuid4().hex
